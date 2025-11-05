@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Midwife Logic - 3D Maternal Health Sudoku</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Background animation */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(255, 182, 193, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(176, 224, 230, 0.2) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(221, 160, 221, 0.2) 0%, transparent 50%);
+            animation: bgPulse 10s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes bgPulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 30px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 90%;
+            position: relative;
+            z-index: 1;
+        }
+
+        h1 {
+            text-align: center;
+            color: #764ba2;
+            font-size: 2em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #667eea;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+
+        .info-bar {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .info-item {
+            background: linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%);
+            padding: 10px 20px;
+            border-radius: 15px;
+            font-weight: bold;
+            color: #333;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin: 20px 0;
+            padding: 15px;
+            background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+            border-radius: 20px;
+            box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            background: white;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cell::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, transparent 100%);
+            pointer-events: none;
+        }
+
+        .cell:hover:not(.fixed):not(.correct) {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 8px 16px rgba(118, 75, 162, 0.3);
+            background: linear-gradient(135deg, #ffeef8 0%, #e6f3ff 100%);
+        }
+
+        .cell.selected {
+            background: linear-gradient(135deg, #ffd6f0 0%, #c2e0ff 100%);
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(118, 75, 162, 0.4);
+        }
+
+        .cell.fixed {
+            background: linear-gradient(135deg, #d4a5f5 0%, #a5d4f5 100%);
+            cursor: default;
+            font-weight: bold;
+        }
+
+        .cell.correct {
+            background: linear-gradient(135deg, #b8f5d4 0%, #a5f5d4 100%);
+            animation: correctPulse 0.5s ease;
+        }
+
+        .cell.incorrect {
+            background: linear-gradient(135deg, #ffb8c1 0%, #ffa5b8 100%);
+            animation: shake 0.5s ease;
+        }
+
+        @keyframes correctPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+
+        .symbol-selector {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .symbol-btn {
+            padding: 15px;
+            font-size: 1.5em;
+            background: linear-gradient(135deg, #ffeef8 0%, #e6f3ff 100%);
+            border: 3px solid #e0c3fc;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .symbol-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(118, 75, 162, 0.3);
+            background: linear-gradient(135deg, #ffd6f0 0%, #c2e0ff 100%);
+        }
+
+        .symbol-btn:active {
+            transform: translateY(0);
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1em;
+            font-weight: bold;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            color: white;
+        }
+
+        .btn-new {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .btn-check {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .btn-hint {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .btn-clear {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: white;
+            padding: 40px;
+            border-radius: 30px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+            animation: slideUp 0.4s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-content h2 {
+            color: #764ba2;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        .modal-content p {
+            color: #555;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .health-tip {
+            background: linear-gradient(135deg, #ffeef8 0%, #e6f3ff 100%);
+            padding: 15px;
+            border-radius: 15px;
+            margin: 15px 0;
+            border-left: 4px solid #764ba2;
+            font-style: italic;
+            color: #333;
+        }
+
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            background: #f0f;
+            position: fixed;
+            animation: confettiFall 3s linear;
+            z-index: 999;
+        }
+
+        @keyframes confettiFall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        .instructions {
+            background: linear-gradient(135deg, #e6f3ff 0%, #ffeef8 100%);
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #555;
+            font-size: 0.9em;
+            border: 2px solid #e0c3fc;
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 1.5em; }
+            .cell { font-size: 1.5em; }
+            .symbol-btn { font-size: 1.2em; padding: 10px; }
+            .container { padding: 20px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌸 Midwife Logic 🌸</h1>
+        <p class="subtitle">Balance Care & Logic</p>
+        
+        <div class="instructions">
+            📝 Fill the grid so each row and column has unique symbols. Tap a cell, then choose a symbol below!
+        </div>
+
+        <div class="info-bar">
+            <div class="info-item">⏱️ Time: <span id="timer">0:00</span></div>
+            <div class="info-item">🎯 Score: <span id="score">0</span></div>
+            <div class="info-item">💡 Hints: <span id="hints">3</span></div>
+        </div>
+
+        <div id="game-board"></div>
+
+        <div class="symbol-selector" id="symbol-selector"></div>
+
+        <div class="controls">
+            <button class="btn-new" onclick="newGame()">🎮 New Game</button>
+            <button class="btn-check" onclick="checkSolution()">✅ Check</button>
+            <button class="btn-hint" onclick="useHint()">💡 Hint</button>
+            <button class="btn-clear" onclick="clearCell()">🗑️ Clear</button>
+        </div>
+    </div>
+
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <h2 id="modal-title">🎉 Perfect Delivery!</h2>
+            <p id="modal-message">You've balanced care and logic beautifully!</p>
+            <div class="health-tip" id="health-tip"></div>
+            <p><strong>Score:</strong> <span id="final-score"></span></p>
+            <p><strong>Time:</strong> <span id="final-time"></span></p>
+            <button class="btn-new" onclick="closeModal(); newGame();">Play Again</button>
+            <button class="btn-check" onclick="shareScore()">📤 Share Score</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Game state variables
+        let gameBoard = [];
+        let solution = [];
+        let selectedCell = null;
+        let score = 0;
+        let timer = 0;
+        let timerInterval = null;
+        let hintsRemaining = 3;
+        
+        // Midwifery-themed symbols (emojis for simplicity and cross-platform compatibility)
+        const symbols = ['🍼', '💝', '🩺', '🌸'];
+        
+        // Educational tips about maternal health
+        const healthTips = [
+            "💙 Prenatal care is key to a healthy pregnancy. Regular checkups can prevent complications.",
+            "🌟 Proper nutrition during pregnancy supports both mother and baby's health.",
+            "💪 Staying active with safe exercises can improve pregnancy outcomes.",
+            "🧘‍♀️ Mental health matters! Prenatal stress management is crucial for wellbeing.",
+            "👶 Breastfeeding provides optimal nutrition and bonding for newborns.",
+            "💕 Support systems are vital - partners, family, and healthcare providers all play a role.",
+            "🏥 Know the warning signs: Call your healthcare provider if you notice unusual symptoms.",
+            "📚 Education empowers - understanding your pregnancy helps you make informed decisions."
+        ];
+
+        // Initialize the game
+        function init() {
+            createBoard();
+            createSymbolSelector();
+            newGame();
+        }
+
+        // Create the game board grid
+        function createBoard() {
+            const board = document.getElementById('game-board');
+            board.innerHTML = '';
+            for (let i = 0; i < 16; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.index = i;
+                cell.addEventListener('click', () => selectCell(i));
+                board.appendChild(cell);
+            }
+        }
+
+        // Create symbol selector buttons
+        function createSymbolSelector() {
+            const selector = document.getElementById('symbol-selector');
+            selector.innerHTML = '';
+            symbols.forEach(symbol => {
+                const btn = document.createElement('button');
+                btn.className = 'symbol-btn';
+                btn.textContent = symbol;
+                btn.onclick = () => placeSymbol(symbol);
+                selector.appendChild(btn);
+            });
+        }
+
+        // Generate a valid Sudoku solution
+        function generateSolution() {
+            solution = Array(16).fill('');
+            const grid = Array(4).fill(null).map(() => Array(4).fill(''));
+            
+            // Fill grid with valid solution
+            function isValid(row, col, symbol) {
+                // Check row
+                for (let c = 0; c < 4; c++) {
+                    if (grid[row][c] === symbol) return false;
+                }
+                // Check column
+                for (let r = 0; r < 4; r++) {
+                    if (grid[r][col] === symbol) return false;
+                }
+                return true;
+            }
+            
+            function solve(pos) {
+                if (pos === 16) return true;
+                const row = Math.floor(pos / 4);
+                const col = pos % 4;
+                
+                const shuffled = [...symbols].sort(() => Math.random() - 0.5);
+                for (let symbol of shuffled) {
+                    if (isValid(row, col, symbol)) {
+                        grid[row][col] = symbol;
+                        if (solve(pos + 1)) return true;
+                        grid[row][col] = '';
+                    }
+                }
+                return false;
+            }
+            
+            solve(0);
+            
+            // Convert to flat array
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    solution[i * 4 + j] = grid[i][j];
+                }
+            }
+        }
+
+        // Start a new game
+        function newGame() {
+            generateSolution();
+            gameBoard = [...solution];
+            
+            // Remove 8-10 symbols randomly to create puzzle
+            const cellsToRemove = 8 + Math.floor(Math.random() * 3);
+            const indices = [...Array(16).keys()].sort(() => Math.random() - 0.5);
+            
+            for (let i = 0; i < cellsToRemove; i++) {
+                gameBoard[indices[i]] = '';
+            }
+            
+            renderBoard();
+            selectedCell = null;
+            score = 0;
+            timer = 0;
+            hintsRemaining = 3;
+            updateDisplay();
+            startTimer();
+        }
+
+        // Render the board
+        function renderBoard() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach((cell, index) => {
+                cell.textContent = gameBoard[index];
+                cell.className = 'cell';
+                
+                if (solution[index] && gameBoard[index] === solution[index] && gameBoard[index] !== '') {
+                    if (gameBoard[index]) cell.classList.add('fixed');
+                }
+                
+                if (selectedCell === index) {
+                    cell.classList.add('selected');
+                }
+            });
+        }
+
+        // Select a cell
+        function selectCell(index) {
+            const cells = document.querySelectorAll('.cell');
+            if (cells[index].classList.contains('fixed')) return;
+            
+            selectedCell = index;
+            renderBoard();
+        }
+
+        // Place a symbol in the selected cell
+        function placeSymbol(symbol) {
+            if (selectedCell === null) {
+                showMessage('Please select a cell first!');
+                return;
+            }
+            
+            const cells = document.querySelectorAll('.cell');
+            if (cells[selectedCell].classList.contains('fixed')) return;
+            
+            gameBoard[selectedCell] = symbol;
+            
+            // Check if placement is correct
+            if (symbol === solution[selectedCell]) {
+                cells[selectedCell].classList.add('correct');
+                playSound('correct');
+                score += 10;
+            } else {
+                cells[selectedCell].classList.add('incorrect');
+                playSound('incorrect');
+                score = Math.max(0, score - 5);
+            }
+            
+            updateDisplay();
+            renderBoard();
+            
+            // Check if puzzle is complete
+            if (gameBoard.every((val, idx) => val === solution[idx])) {
+                setTimeout(() => winGame(), 500);
+            }
+        }
+
+        // Clear selected cell
+        function clearCell() {
+            if (selectedCell === null) {
+                showMessage('Please select a cell first!');
+                return;
+            }
+            
+            const cells = document.querySelectorAll('.cell');
+            if (cells[selectedCell].classList.contains('fixed')) return;
+            
+            gameBoard[selectedCell] = '';
+            renderBoard();
+        }
+
+        // Use a hint
+        function useHint() {
+            if (hintsRemaining <= 0) {
+                showMessage('No hints remaining!');
+                return;
+            }
+            
+            // Find an empty cell
+            const emptyCells = gameBoard.map((val, idx) => val === '' ? idx : -1).filter(idx => idx !== -1);
+            
+            if (emptyCells.length === 0) {
+                showMessage('No empty cells!');
+                return;
+            }
+            
+            const hintCell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+            gameBoard[hintCell] = solution[hintCell];
+            
+            const cells = document.querySelectorAll('.cell');
+            cells[hintCell].classList.add('correct');
+            cells[hintCell].classList.add('fixed');
+            
+            hintsRemaining--;
+            score += 5;
+            playSound('hint');
+            updateDisplay();
+            renderBoard();
+        }
+
+        // Check the current solution
+        function checkSolution() {
+            let correct = 0;
+            let total = 0;
+            
+            gameBoard.forEach((val, idx) => {
+                if (val !== '') {
+                    total++;
+                    if (val === solution[idx]) correct++;
+                }
+            });
+            
+            if (total === 0) {
+                showMessage('Place some symbols first!');
+                return;
+            }
+            
+            const percentage = Math.round((correct / total) * 100);
+            showMessage(`${correct} out of ${total} cells are correct (${percentage}%)!`);
+            
+            if (correct === 16) {
+                setTimeout(() => winGame(), 500);
+            }
+        }
+
+        // Win game
+        function winGame() {
+            stopTimer();
+            playSound('win');
+            createConfetti();
+            
+            const modal = document.getElementById('modal');
+            document.getElementById('modal-title').textContent = '🎉 Perfect Delivery!';
+            document.getElementById('modal-message').textContent = "You've balanced care and logic beautifully!";
+            document.getElementById('health-tip').textContent = healthTips[Math.floor(Math.random() * healthTips.length)];
+            document.getElementById('final-score').textContent = score;
+            document.getElementById('final-time').textContent = formatTime(timer);
+            modal.style.display = 'flex';
+        }
+
+        // Create confetti effect
+        function createConfetti() {
+            const colors = ['#ffc0cb', '#ffb6c1', '#dda0dd', '#b0e0e6', '#98fb98'];
+            for (let i = 0; i < 50; i++) {
+                setTimeout(() => {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = Math.random() * 100 + 'vw';
+                    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.animationDelay = Math.random() * 0.5 + 's';
+                    document.body.appendChild(confetti);
+                    setTimeout(() => confetti.remove(), 3000);
+                }, i * 30);
+            }
+        }
+
+        // Timer functions
+        function startTimer() {
+            stopTimer();
+            timerInterval = setInterval(() => {
+                timer++;
+                updateDisplay();
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // Update display
+        function updateDisplay() {
+            document.getElementById('timer').textContent = formatTime(timer);
+            document.getElementById('score').textContent = score;
+            document.getElementById('hints').textContent = hintsRemaining;
+        }
+
+        // Show temporary message
+        function showMessage(msg) {
+            const existingMsg = document.querySelector('.temp-message');
+            if (existingMsg) existingMsg.remove();
+            
+            const message = document.createElement('div');
+            message.className = 'temp-message';
+            message.textContent = msg;
+            message.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(118, 75, 162, 0.95);
+                color: white;
+                padding: 20px 40px;
+                border-radius: 15px;
+                font-weight: bold;
+                z-index: 2000;
+                animation: fadeIn 0.3s ease;
+            `;
+            document.body.appendChild(message);
+            setTimeout(() => message.remove(), 2000);
+        }
+
+        // Simple sound effects using Web Audio API
+        function playSound(type) {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            switch(type) {
+                case 'correct':
+                    oscillator.frequency.value = 523.25; // C5
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.3);
+                    break;
+                case 'incorrect':
+                    oscillator.frequency.value = 200;
+                    gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.2);
+                    break;
+                case 'hint':
+                    oscillator.frequency.value = 659.25; // E5
+                    gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.4);
+                    break;
+                case 'win':
+                    [523.25, 587.33, 659.25, 783.99].forEach((freq, i) => {
+                        const osc = audioContext.createOscillator();
+                        const gain = audioContext.createGain();
+                        osc.connect(gain);
+                        gain.connect(audioContext.destination);
+                        osc.frequency.value = freq;
+                        gain.gain.setValueAtTime(0.2, audioContext.currentTime + i * 0.1);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + i * 0.1 + 0.3);
+                        osc.start(audioContext.currentTime + i * 0.1);
+                        osc.stop(audioContext.currentTime + i * 0.1 + 0.3);
+                    });
+                    break;
+            }
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        // Share score
+        function shareScore() {
+            const text = `🌸 I delivered logic and care in Midwife Logic! 🎯 Score: ${score} ⏱️ Time: ${formatTime(timer)} 💪 Play now and test your skills!`;
+            
+            if (navigator.share) {
+                navigator.share({ text }).catch(() => copyToClipboard(text));
+            } else {
+                copyToClipboard(text);
+            }
+        }
+
+        // Copy to clipboard
+        function copyToClipboard(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            showMessage('Score copied to clipboard! 📋');
+        }
+
+        // Initialize game when page loads
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
+
+<!-- GAME OVERVIEW -->
+<!--
+🎮 HOW THE GAME WORKS:
+This is a 4x4 Sudoku-style puzzle game themed around midwifery and maternal health.
+- Players fill a grid with symbols (🍼 baby bottle, 💝 heart, 🩺 stethoscope, 🌸 flower)
+- Each row and column must contain each symbol exactly once
+- Some cells are pre-filled as clues
+- Players tap a cell, then select a symbol from the buttons below
+- Correct placements turn green, incorrect ones turn red
+- Score increases for correct placements, decreases for errors
+- Timer tracks how fast you solve the puzzle
+- 3 hints are available per game
+- When complete, shows celebration with confetti and a maternal health tip
+
+🔧 HOW TO MODIFY:
+
+SYMBOLS:
+Change line 197: const symbols = ['🍼', '💝', '🩺', '🌸'];
+- Replace with any 4 emojis or characters
+- Keep exactly 4 symbols for 4x4 grid
+- For 3x3 grid: use 3 symbols and change grid logic
+
+DIFFICULTY:
+Line 279: const cellsToRemove = 8 + Math.floor(Math.random() * 3);
+- Increase number to make harder (more empty cells)
+- Decrease to make easier (fewer empty cells)
+- Range: 4-12 for 4x4 grid
+
+EDUCATIONAL TIPS:
+Lines 200-209: Edit the healthTips array
+- Add more tips about maternal health
+- Customize for specific learning objectives
+- Tips appear randomly after completing puzzle
+
+COLORS:
+- Lines 19-20: Main gradient background
+- Lines 106-108: Cell gradient colors
+- Lines 197-199: Button gradients
+- Use any hex or rgba colors
+
+GRID SIZE:
+To change to 3x3:
+1. Line 162: Change loop to 9 iterations
+2. Line 197: Use 3 symbols
+3. Update grid generation logic (lines 235-280)
+
+SCORING:
+- Line 
